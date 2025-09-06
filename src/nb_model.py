@@ -44,8 +44,8 @@ if __name__ == "__main__":
     import csv
 
     # Caminhos dos arquivos
-    tfidf_path = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/tfidf_sparse.npz"
-    csv_path = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/emails_cleaned.csv"
+    tfidf_path = r"../SpamDetector/data/processed/tfidf_sparse.npz"
+    csv_path = r"../SpamDetector/data/processed/emails_cleaned.csv"
 
     # Carrega matriz TF-IDF
     tfidf = load_npz(tfidf_path).toarray()

@@ -4,9 +4,9 @@ from scipy.sparse import load_npz
 import csv
 
 # Caminhos dos arquivos
-tfidf_path = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/tfidf_sparse.npz"
-vocab_path = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/vocab.txt"
-csv_path = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/emails_cleaned.csv"
+tfidf_path = r"../SpamDetector/data/processed/tfidf_sparse.npz"
+vocab_path = r"../SpamDetector/data/processed/vocab.txt"
+csv_path = r"../SpamDetector/data/processed/emails_cleaned.csv"
 
 def load_vocab(vocab_path):
     vocab = []
@@ -74,5 +74,5 @@ def plot_tfidf_bar_per_class(word):
     plt.show()
 
 if __name__ == "__main__":
-    word = "the"
+    word = "money"
     plot_tfidf_bar_per_class(word)

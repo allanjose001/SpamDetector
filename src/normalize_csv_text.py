@@ -131,13 +131,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "input_path",
         nargs="?",
-        default=r"c:\Users\Diogenes\Desktop\SpamDetector\data\raw\emails.csv",
+        default=r"../SpamDetector/data/raw/emails.csv",
         help="Caminho do CSV de entrada (padrão: data/raw/emails.csv)"
     )
     parser.add_argument(
         "output_path",
         nargs="?",
-        default=r"c:\Users\Diogenes\Desktop\SpamDetector\data\processed\emails_cleaned.csv",
+        default=r"../SpamDetector/data/processed/emails_cleaned.csv",
         help="Caminho do CSV de saída (padrão: data/processed/emails_cleaned.csv)"
     )
     parser.add_argument('--min-token-len', type=int, default=1,
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     # Verifica existência do arquivo de entrada
     if not input_path.exists():
         print(f"Arquivo de entrada não encontrado: {input_path}")
-        print(r'Exemplo: python src\normalize_csv_text.py c:\Users\Diogenes\Desktop\SpamDetector\data\raw\emails.csv c:\Users\Diogenes\Desktop\SpamDetector\data\processed\emails_cleaned.csv')
+        print(r'Exemplo: python src/normalize_csv_text.py ../SpamDetector/data/raw/emails.csv ../SpamDetector/data/processed/emails_cleaned.csv')
         raise SystemExit(1)
 
     # Garante pasta de saída existente

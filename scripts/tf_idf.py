@@ -27,10 +27,10 @@ if __name__ == "__main__":
 
     # Parâmetros
     csv.field_size_limit(10**7)
-    csv_path = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/emails_cleaned.csv"
-    max_lines = 3000        # processa até N linhas
-    out_npz = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/tfidf_sparse.npz"
-    out_vocab = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/vocab.txt"
+    csv_path = r"../SpamDetector/data/processed/emails_cleaned.csv"
+    max_lines = 10000        # processa até N linhas
+    out_npz = r"../SpamDetector/data/processed/tfidf_sparse.npz"
+    out_vocab = r"../SpamDetector/data/processed/vocab.txt"
 
     # Lê textos (até max_lines) com contador de progresso
     texts = []
@@ -59,7 +59,7 @@ if __name__ == "__main__":
                 vf.write(term + '\n')
         print(f"[vocab] gerado e salvo em: {vocab_path} (len={len(vocab)})")
 
-    # Calcula IDF de forma eficiente: uma passada pelos documentos para contar DF
+   # Calcula IDF de forma eficiente: uma passada pelos documentos para contar DF
     print(f"[idf] contando DF em {len(texts)} documentos...")
     t_idf_start = time.time()
     df_counter = Counter()
@@ -72,6 +72,15 @@ if __name__ == "__main__":
         for term in vocab
     }
     print(f"[idf] concluído em {time.time() - t_idf_start:.1f}s")
+
+    # Salva o idf_dict para uso futuro
+    import pickle
+    from pathlib import Path
+    idf_dict_path = r"../SpamDetector/data/processed/idf_dict.pkl"
+    Path(idf_dict_path).parent.mkdir(parents=True, exist_ok=True)
+    with open(idf_dict_path, "wb") as f:
+        pickle.dump(idf_dict, f)
+    print(f"[idf] idf_dict salvo em: {idf_dict_path}")
 
     # Calcula vetores TF-IDF em batches com feedback de progresso
     print(f"[tfidf] calculando TF-IDF para {n_docs} documentos (vocab size={len(vocab)})...")
