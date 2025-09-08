@@ -2,7 +2,7 @@ import csv
 from collections import Counter, defaultdict
 
 csv.field_size_limit(10**7)
-csv_path = "../SpamDetector/data/processed/emails_cleaned.csv"
+csv_path = "../SpamDetector/data/processed/emails_train.csv"
 with open(csv_path, 'r', encoding='utf-8') as f:
     reader = csv.DictReader(f)
     all_texts = [(row['text'], int(row['spam'])) for row in reader]

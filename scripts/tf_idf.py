@@ -27,8 +27,8 @@ if __name__ == "__main__":
 
     # Parâmetros
     csv.field_size_limit(10**7)
-    csv_path = r"../SpamDetector/data/processed/emails_cleaned.csv"
-    max_lines = 3000        # processa até N linhas
+    csv_path = r"../SpamDetector/data/processed/emails_train.csv"
+    max_lines = 10000        # processa até N linhas
     out_npz = r"../SpamDetector/data/processed/tfidf_sparse.npz"
     out_vocab = r"../SpamDetector/data/processed/vocab.txt"
 

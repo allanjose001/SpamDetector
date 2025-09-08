@@ -6,7 +6,7 @@ import csv
 
 DEFAULT_TFIDF = r"../SpamDetector/data/processed/tfidf_sparse.npz"
 DEFAULT_VOCAB = r"../SpamDetector/data/processed/vocab.txt"
-DEFAULT_CSV = r"../SpamDetector/data/processed/emails_cleaned.csv"
+DEFAULT_CSV = r"../SpamDetector/data/processed/emails_train.csv"
 DEFAULT_OUT = r"../SpamDetector/data/processed/words_with_examples.txt"
 
 def load_labels(csv_path, label_field='spam'):

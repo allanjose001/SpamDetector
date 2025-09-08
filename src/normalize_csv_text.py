@@ -5,6 +5,11 @@ import argparse
 import random
 from pathlib import Path
 
+import nltk
+from nltk.stem import SnowballStemmer
+nltk.download('punkt', quiet=True)
+stemmer = SnowballStemmer("english")
+
 csv.field_size_limit(10**7)
 
 # Compila expressões regulares usadas
@@ -19,6 +24,9 @@ RE_MULTI_SPACE = re.compile(r'\s+')
 RE_REPEAT_CHARS = re.compile(r'(.)\1{2,}')   # colapsa repetições longas
 RE_REPEAT_PUNCT = re.compile(r"(([!?\-])(\s*\2){1,})")
 RE_EXACT_RE = re.compile(r'\sre\s:', flags=re.I)
+RE_NAME = re.compile(r"\b(vince|larrissa|kaminski|sharma|joe|john|martin|carr|collins|stephen|bennett|norma|mike|roberts|jose|marquez|paul|bristow|ed|edward|krapels)\b", flags=re.I)
+RE_FILE = re.compile(r"\b(pdf|doc|xls|letter|file|attach|enclo|attachment)\b", flags=re.I)
+RE_DATE = re.compile(r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|week|month|year|day|today|tomorrow|yesterday)\b", flags=re.I)
 
 # Listas de palavras por categoria
 TAG_WORDS = {
@@ -38,14 +46,12 @@ TAG_WORDS = {
     "ADJ": ["other", "same", "new", "good", "bad", "different", "little", "big", "great", "small"]
 }
 
-# Função: remove acentuação unicode
 def strip_accents(text: str) -> str:
     if not text:
         return text
     nfkd = unicodedata.normalize('NFKD', text)
     return ''.join(ch for ch in nfkd if not unicodedata.combining(ch))
 
-# Função: normaliza um texto aplicando várias etapas e insere tags
 def normalize_text(text: str,
                    remove_urls=True,
                    remove_emails=True,
@@ -69,6 +75,9 @@ def normalize_text(text: str,
     s = RE_REPEAT_PUNCT.sub(' PUNCTTAG ', s)
     s = RE_EXACT_RE.sub(' RETAG ', s)
     s = RE_SUBJECT.sub('', s)
+    s = RE_NAME.sub("NAMETAG", s) 
+    s = RE_FILE.sub("FILETAG", s)
+    s = RE_DATE.sub("DATETAG", s)
     s = strip_accents(s)
     s = s.lower()
     if collapse_repeats:
@@ -78,64 +87,88 @@ def normalize_text(text: str,
     s = RE_NON_ALNUM.sub(' ', s)
     s = RE_MULTI_SPACE.sub(' ', s).strip()
 
-    # Adiciona tags para cada categoria
     tokens = s.split()
     tagged_tokens = []
+    tag_word_set = set(w for words in TAG_WORDS.values() for w in words)
+    tags_to_remove = {"PUNCTTAG", "EMAILTAG"}
+    tags_to_keep = {"NAMETAG", "URLTAG"}  # <-- Adicione esta linha
+
     for t in tokens:
-        tagged = False
-        for tag, words in TAG_WORDS.items():
-            if t in words:
-                tagged_tokens.append(f"{tag}TAG")
-                tagged = True
-                break
-        if not tagged:
-            tagged_tokens.append(t)
-    # Remove tokens curtos se necessário
+        if t in tag_word_set:
+            continue
+        if t in tags_to_remove:
+            continue
+        if t in tags_to_keep:
+            tagged_tokens.append(t)  # mantém a tag sem stemmatizar
+        else:
+            tagged_tokens.append(stemmer.stem(t))  # aplica stemmatização
     if min_token_len > 1:
         tagged_tokens = [tok for tok in tagged_tokens if len(tok) >= min_token_len]
     return ' '.join(tagged_tokens)
 
-# Função: processa CSV e grava arquivo normalizado
-def normalize_csv(input_path: str, output_path: str,
-                  text_field: str = 'text',
-                  min_token_len: int = 1,
-                  shuffle: bool = True,
-                  seed: int = 42,
-                  max_lines: int = None):
+def normalize_and_split_csv(input_path: str, train_path: str, test_path: str,
+                           text_field: str = 'text',
+                           min_token_len: int = 1,
+                           shuffle: bool = True,
+                           seed: int = 42,
+                           n_train: int = 3500):
     input_p = Path(input_path)
-    output_p = Path(output_path)
-    output_p.parent.mkdir(parents=True, exist_ok=True)
+    train_p = Path(train_path)
+    test_p = Path(test_path)
+    train_p.parent.mkdir(parents=True, exist_ok=True)
+    test_p.parent.mkdir(parents=True, exist_ok=True)
 
-    # Lê todas as linhas primeiro (para poder embaralhar mantendo rótulos)
+    # Lê todas as linhas
     with open(input_p, 'r', encoding='utf-8', newline='') as infile:
         reader = csv.DictReader(infile)
         fieldnames = reader.fieldnames or []
         if text_field not in fieldnames:
             raise SystemExit(f"Campo '{text_field}' não encontrado no cabeçalho: {fieldnames}")
-        rows = []
-        for i, row in enumerate(reader):
-            if max_lines is not None and i >= max_lines:
-                break
-            rows.append(row)
+        rows = [row for row in reader]
 
-    # Embaralha se solicitado (reprodutível via seed)
+    # Embaralha antes de normalizar
     if shuffle:
         rnd = random.Random(seed)
         rnd.shuffle(rows)
 
-    # Normaliza e grava
-    with open(output_p, 'w', encoding='utf-8', newline='') as outfile:
-        writer = csv.DictWriter(outfile, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
+    # Divide para treino e teste
+    train_rows = rows[:n_train]
+    test_rows = rows[n_train:]
+
+    # Normaliza e grava treino
+    with open(train_p, 'w', encoding='utf-8', newline='') as trainfile:
+        writer = csv.DictWriter(trainfile, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
         writer.writeheader()
-        for row in rows:
+        for row in train_rows:
+            raw = row.get(text_field, '') or ''
+            row[text_field] = normalize_text(raw, min_token_len=min_token_len, remove_numbers=True)
+            writer.writerow(row)
+
+    # Normaliza e grava teste
+    with open(test_p, 'w', encoding='utf-8', newline='') as testfile:
+        writer = csv.DictWriter(testfile, fieldnames=fieldnames, quoting=csv.QUOTE_MINIMAL)
+        writer.writeheader()
+        for row in test_rows:
             raw = row.get(text_field, '') or ''
             row[text_field] = normalize_text(raw, min_token_len=min_token_len, remove_numbers=True)
             writer.writerow(row)
 
 if __name__ == "__main__":
-    MAX_EMAILS = 3000  # ajuste para o valor desejado
+    exemplos = [
+        "running runs runner",
+        "better best good",
+        "studies studying studied",
+        "NAMETAG went to the URLTAG",
+        "the quick brown fox jumps over the lazy dog"
+    ]
+    for texto in exemplos:
+        print("Original:", texto)
+        print("Normalizado:", normalize_text(texto))
+        print("---")
 
-    parser = argparse.ArgumentParser(description="Normaliza o campo 'text' de um CSV com tags linguísticas")
+    N_TRAIN = 5729-1000  # quantidade para treino
+
+    parser = argparse.ArgumentParser(description="Normaliza o campo 'text' de um CSV e divide em treino/teste")
     parser.add_argument(
         "input_path",
         nargs="?",
@@ -143,10 +176,14 @@ if __name__ == "__main__":
         help="Caminho do CSV de entrada (padrão: data/raw/emails.csv)"
     )
     parser.add_argument(
-        "output_path",
-        nargs="?",
-        default=r"../SpamDetector/data/processed/emails_cleaned.csv",
-        help="Caminho do CSV de saída (padrão: data/processed/emails_cleaned.csv)"
+        "--train_path",
+        default=r"../SpamDetector/data/processed/emails_train.csv",
+        help="Caminho do CSV de treino (padrão: data/processed/emails_train.csv)"
+    )
+    parser.add_argument(
+        "--test_path",
+        default=r"../SpamDetector/data/processed/emails_test.csv",
+        help="Caminho do CSV de teste (padrão: data/processed/emails_test.csv)"
     )
     parser.add_argument('--min-token-len', type=int, default=1,
                         help="Remove tokens menores que este tamanho (padrão 1)")
@@ -154,23 +191,22 @@ if __name__ == "__main__":
                         help="Desativa embaralhamento (mantém ordem original)")
     parser.add_argument('--seed', type=int, default=42,
                         help="Semente para embaralhamento reprodutível (padrão 42)")
-    # parser.add_argument('--max-lines', type=int, default=None,
-    #                     help="Limita o número de linhas a serem normalizadas")
+    parser.add_argument('--n-train', type=int, default=N_TRAIN,
+                        help="Número de linhas para treino (restante vai para teste)")
     args = parser.parse_args()
 
     input_path = Path(args.input_path)
-    output_path = Path(args.output_path)
+    train_path = Path(args.train_path)
+    test_path = Path(args.test_path)
 
     if not input_path.exists():
         print(f"Arquivo de entrada não encontrado: {input_path}")
-        print(r'Exemplo: python src/normalize_csv_text.py ../SpamDetector/data/raw/emails.csv ../SpamDetector/data/processed/emails_cleaned.csv')
         raise SystemExit(1)
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    normalize_csv(str(input_path), str(output_path),
-                  min_token_len=args.min_token_len,
-                  shuffle=not args.no_shuffle,
-                  seed=args.seed,
-                  max_lines=MAX_EMAILS)
-    print(f"CSV normalizado salvo em: {output_path}")
+    normalize_and_split_csv(str(input_path), str(train_path), str(test_path),
+                           min_token_len=args.min_token_len,
+                           shuffle=not args.no_shuffle,
+                           seed=args.seed,
+                           n_train=args.n_train)
+    print(f"Treino salvo em: {train_path}")
+    print(f"Teste salvo em: {test_path}")

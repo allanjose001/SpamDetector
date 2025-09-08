@@ -21,7 +21,7 @@ class NaiveBayes:
         selected = []
         for i, tfidf in enumerate(x):
             if i >= n_features:
-                continue  # ignora índices fora do range da matriz
+                continue
             if tfidf > 0 and vocab[i]:
                 if pred == 1:
                     likelihood_pred = (1.0 / np.sqrt(2 * np.pi * var1[i])) * np.exp(-((tfidf - mu1[i]) ** 2) / (2 * var1[i]))
@@ -32,7 +32,6 @@ class NaiveBayes:
                     likelihood_other = (1.0 / np.sqrt(2 * np.pi * var1[i])) * np.exp(-((tfidf - mu1[i]) ** 2) / (2 * var1[i]))
                     diff = likelihood_pred - likelihood_other
                 selected.append((vocab[i], tfidf, likelihood_pred, diff))
-        # Ordena pela diferença conforme a classe prevista
         if pred == 1:
             selected.sort(key=lambda x: -x[3])
         else:
@@ -43,7 +42,7 @@ class NaiveBayes:
     def predict_proba(self, X):
         probs = []
         for x in X:
-            nonzero_idx = np.where(x != 0)[0]  # Só considera features presentes no email
+            nonzero_idx = np.where(x != 0)[0]
             class_probs = {}
             for c in self.classes:
                 prior = self.class_priors[c]
@@ -67,43 +66,36 @@ if __name__ == "__main__":
     from scipy.sparse import load_npz
     import csv
 
-    # Caminhos dos arquivos
+    # Defina os caminhos dos arquivos diretamente no código
     tfidf_path = r"../SpamDetector/data/processed/tfidf_sparse.npz"
-    csv_path = r"../SpamDetector/data/processed/emails_cleaned.csv"
+    csv_path = r"../SpamDetector/data/processed/emails_test.csv"
+    vocab_path = r"../SpamDetector/data/processed/vocab.txt"
 
-    # Carrega matriz TF-IDF
-    tfidf = load_npz(tfidf_path).toarray()
-
-    # Carrega rótulos
-    labels = []
+    # Carrega matriz TF-IDF de treino
+    X = load_npz(tfidf_path).toarray()
+    y = []
     with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            labels.append(int(row["spam"]))
-    labels = np.array(labels)
+            y.append(int(row["spam"]))
+    y = np.array(y)
+    if X.shape[0] < y.shape[0]:
+        y = y[:X.shape[0]]
+    elif X.shape[0] > y.shape[0]:
+        X = X[:y.shape[0]]
 
-    if tfidf.shape[0] < labels.shape[0]:
-        labels = labels[:tfidf.shape[0]]
-    elif tfidf.shape[0] > labels.shape[0]:
-        tfidf = tfidf[:labels.shape[0]]
+    # Carrega vocab
+    with open(vocab_path, encoding="utf-8") as f:
+        vocab = [line.strip() for line in f if line.strip()]
 
-    # Separa último exemplo para teste
-    n_test = 1000
-    X_train = tfidf[:-n_test]
-    y_train = labels[:-n_test]
-    X_test = tfidf[-n_test:]
-    y_test = labels[-n_test:]
+    print("Distribuição das classes:", np.bincount(y))
+    print("Proporção de features não nulas:", np.count_nonzero(X) / X.size)
 
-    print("Distribuição das classes no treino:", np.bincount(y_train))
-    print("Distribuição das classes no teste:", np.bincount(y_test))
-    print("Proporção de features não nulas no teste:", np.count_nonzero(X_test) / X_test.size)
-
-    # Treina e testa
+    # Treina e testa no próprio conjunto
     model = NaiveBayes()
-    model.fit(X_train, y_train)
-    preds = model.predict(X_test)
+    model.fit(X, y)
+    preds = model.predict(X)
 
-    # Mostra resultados
     print("Classe prevista:", preds)
-    print("Classe real:", y_test)
-    print("Acurácia:", np.mean(preds == y_test))
+    print("Classe real:", y)
+    print("Acurácia:", np.mean(preds == y))

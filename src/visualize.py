@@ -9,7 +9,7 @@ from scipy.stats import norm
 # Caminhos padrão (ajuste se necessário)
 DEFAULT_TFIDF = r"../SpamDetector/data/processed/tfidf_sparse.npz"
 DEFAULT_VOCAB = r"../SpamDetector/data/processed/vocab.txt"
-DEFAULT_CSV = r"../SpamDetector/data/processed/emails_cleaned.csv"
+DEFAULT_CSV = r"../SpamDetector/data/processed/emails_train.csv"
 
 def load_labels(csv_path, label_field='spam'):
     labels = []
@@ -52,16 +52,13 @@ def plot_likelihood(word, tfidf_values_spam, tfidf_values_ham):
     ratio = np.divide(likelihood_spam, likelihood_ham, out=np.zeros_like(likelihood_spam), where=likelihood_ham!=0)
 
     fig, ax1 = plt.subplots(figsize=(8, 5))
-    # Curva 1: Spam
     ax1.plot(x, likelihood_spam, label=f"Spam (μ={mu_spam:.3f}, σ={std_spam:.3f})", color='red')
-    # Curva 2: Ham
     ax1.plot(x, likelihood_ham, label=f"Ham (μ={mu_ham:.3f}, σ={std_ham:.3f})", color='blue')
     ax1.set_xlabel("TF-IDF")
     ax1.set_ylabel("Verossimilhança (PDF)")
     ax1.legend(loc="upper left")
     ax1.grid(True, linestyle='--', alpha=0.5)
 
-    # Curva 3: Razão (Spam/Ham) com escala à direita e legenda no topo direito
     ax2 = ax1.twinx()
     ax2.plot(x, ratio, label="Spam/Ham", color='black', linestyle='--')
     ax2.set_ylabel("Razão Spam/Ham")
@@ -70,7 +67,8 @@ def plot_likelihood(word, tfidf_values_spam, tfidf_values_ham):
 
     plt.title(f"Verossimilhança para a palavra '{word}' (TF-IDF > 0)")
     plt.tight_layout()
-    plt.show()
+    plt.savefig(f"{word}_likelihood.png")  # <-- ALTERAÇÃO: salva o gráfico
+    plt.close(fig)  # <-- ALTERAÇÃO: fecha o gráfico para liberar memória
 
 def main(tfidf_path, vocab_path, csv_path, words, label_field='spam'):
     # Carrega recursos
@@ -109,7 +107,11 @@ if __name__ == "__main__":
     parser.add_argument("--tfidf", default=DEFAULT_TFIDF, help="Caminho .npz do TF-IDF")
     parser.add_argument("--vocab", default=DEFAULT_VOCAB, help="Caminho do vocab.txt")
     parser.add_argument("--csv", default=DEFAULT_CSV, help="CSV com rótulos (campo 'spam')")
-    parser.add_argument("--words", default="ADVTAG", help="Lista de palavras separadas por vírgula")
+    parser.add_argument(
+    "--words",
+    default="moneytag",
+        help="Lista de palavras separadas por vírgula"
+    )
     parser.add_argument("--label-field", default="spam", help="Nome do campo de rótulo no CSV")
     args = parser.parse_args()
 
