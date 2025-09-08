@@ -7,9 +7,9 @@ import csv
 from scipy.stats import norm
 
 # Caminhos padrão (ajuste se necessário)
-DEFAULT_TFIDF = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/tfidf_sparse.npz"
-DEFAULT_VOCAB = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/vocab.txt"
-DEFAULT_CSV = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/emails_cleaned.csv"
+DEFAULT_TFIDF = r"../SpamDetector/data/processed/tfidf_sparse.npz"
+DEFAULT_VOCAB = r"../SpamDetector/data/processed/vocab.txt"
+DEFAULT_CSV = r"../SpamDetector/data/processed/emails_cleaned.csv"
 
 def load_labels(csv_path, label_field='spam'):
     labels = []
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     parser.add_argument("--tfidf", default=DEFAULT_TFIDF, help="Caminho .npz do TF-IDF")
     parser.add_argument("--vocab", default=DEFAULT_VOCAB, help="Caminho do vocab.txt")
     parser.add_argument("--csv", default=DEFAULT_CSV, help="CSV com rótulos (campo 'spam')")
-    parser.add_argument("--words", default="click", help="Lista de palavras separadas por vírgula")
+    parser.add_argument("--words", default="free", help="Lista de palavras separadas por vírgula")
     parser.add_argument("--label-field", default="spam", help="Nome do campo de rótulo no CSV")
     args = parser.parse_args()
 

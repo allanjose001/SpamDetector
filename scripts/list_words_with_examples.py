@@ -4,10 +4,10 @@ from pathlib import Path
 from scipy.sparse import load_npz
 import csv
 
-DEFAULT_TFIDF = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/tfidf_sparse.npz"
-DEFAULT_VOCAB = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/vocab.txt"
-DEFAULT_CSV = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/emails_cleaned.csv"
-DEFAULT_OUT = r"c:/Users/Diogenes/Desktop/SpamDetector/data/processed/words_with_examples.txt"
+DEFAULT_TFIDF = r"../SpamDetector/data/processed/tfidf_sparse.npz"
+DEFAULT_VOCAB = r"../SpamDetector/data/processed/vocab.txt"
+DEFAULT_CSV = r"../SpamDetector/data/processed/emails_cleaned.csv"
+DEFAULT_OUT = r"../SpamDetector/data/processed/words_with_examples.txt"
 
 def load_labels(csv_path, label_field='spam'):
     labels = []
