@@ -109,7 +109,7 @@ if __name__ == "__main__":
     parser.add_argument("--tfidf", default=DEFAULT_TFIDF, help="Caminho .npz do TF-IDF")
     parser.add_argument("--vocab", default=DEFAULT_VOCAB, help="Caminho do vocab.txt")
     parser.add_argument("--csv", default=DEFAULT_CSV, help="CSV com rótulos (campo 'spam')")
-    parser.add_argument("--words", default="free", help="Lista de palavras separadas por vírgula")
+    parser.add_argument("--words", default="ADVTAG", help="Lista de palavras separadas por vírgula")
     parser.add_argument("--label-field", default="spam", help="Nome do campo de rótulo no CSV")
     args = parser.parse_args()
 

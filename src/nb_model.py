@@ -16,35 +16,29 @@ class NaiveBayes:
     def _gaussian_likelihood(self, x, mean, std):
         return (1.0 / (np.sqrt(2 * np.pi) * std)) * np.exp(- ((x - mean) ** 2) / (2 * std ** 2))
 
-    def explain(self, x, vocab=None):
-        """
-        Explica a decisão do modelo para um único vetor x.
-        Retorna um dicionário detalhado com todos os passos do cálculo.
-        """
-        explanation = {}
-        nonzero_idx = np.where(x != 0)[0]
-        words = [vocab[i] for i in nonzero_idx] if vocab is not None else nonzero_idx.tolist()
-        x_nonzero = x[nonzero_idx]
-        explanation['words'] = words
-        explanation['tfidf'] = x_nonzero.tolist()
-        explanation['classes'] = {}
-        for c in self.classes:
-            prior = self.class_priors[c]
-            mean = self.feature_params[c]["mean"][nonzero_idx]
-            std = self.feature_params[c]["std"][nonzero_idx]
-            likelihoods = self._gaussian_likelihood(x_nonzero, mean, std)
-            log_likelihoods = np.log(likelihoods + 1e-9)
-            class_logprob = np.log(prior) + np.sum(log_likelihoods)
-            explanation['classes'][int(c)] = {
-                "prior": float(prior),
-                "mean": mean.tolist(),
-                "std": std.tolist(),
-                "likelihoods": likelihoods.tolist(),
-                "log_likelihoods": log_likelihoods.tolist(),
-                "log_likelihood_sum": float(np.sum(log_likelihoods)),
-                "class_logprob": float(class_logprob)
-            }
-        return explanation
+    def explain(x, vocab, mu0, var0, mu1, var1, pred, tfidf_matrix, labels):
+        n_features = tfidf_matrix.shape[1]
+        selected = []
+        for i, tfidf in enumerate(x):
+            if i >= n_features:
+                continue  # ignora índices fora do range da matriz
+            if tfidf > 0 and vocab[i]:
+                if pred == 1:
+                    likelihood_pred = (1.0 / np.sqrt(2 * np.pi * var1[i])) * np.exp(-((tfidf - mu1[i]) ** 2) / (2 * var1[i]))
+                    likelihood_other = (1.0 / np.sqrt(2 * np.pi * var0[i])) * np.exp(-((tfidf - mu0[i]) ** 2) / (2 * var0[i]))
+                    diff = likelihood_pred - likelihood_other
+                else:
+                    likelihood_pred = (1.0 / np.sqrt(2 * np.pi * var0[i])) * np.exp(-((tfidf - mu0[i]) ** 2) / (2 * var0[i]))
+                    likelihood_other = (1.0 / np.sqrt(2 * np.pi * var1[i])) * np.exp(-((tfidf - mu1[i]) ** 2) / (2 * var1[i]))
+                    diff = likelihood_pred - likelihood_other
+                selected.append((vocab[i], tfidf, likelihood_pred, diff))
+        # Ordena pela diferença conforme a classe prevista
+        if pred == 1:
+            selected.sort(key=lambda x: -x[3])
+        else:
+            selected.sort(key=lambda x: x[3])
+        for token, tfidf, likelihood_pred, diff in selected:
+            print(f"{token}\t{tfidf:.4f}\t{likelihood_pred:.6f}\t{diff:.6f}")
 
     def predict_proba(self, X):
         probs = []
@@ -94,7 +88,7 @@ if __name__ == "__main__":
         tfidf = tfidf[:labels.shape[0]]
 
     # Separa último exemplo para teste
-    n_test = 100
+    n_test = 1000
     X_train = tfidf[:-n_test]
     y_train = labels[:-n_test]
     X_test = tfidf[-n_test:]
