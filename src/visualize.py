@@ -26,9 +26,9 @@ def load_vocab(vocab_path):
     vocab = []
     with open(vocab_path, 'r', encoding='utf-8') as vf:
         for line in vf:
-            term = line.strip()
-            if term:
-                vocab.append(term)
+            parts = line.strip().split('\t')
+            if parts and parts[0]:
+                vocab.append(parts[0])
     index = {term: i for i, term in enumerate(vocab)}
     return vocab, index
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     parser.add_argument("--csv", default=DEFAULT_CSV, help="CSV com rótulos (campo 'spam')")
     parser.add_argument(
     "--words",
-    default="moneytag",
+    default="money",
         help="Lista de palavras separadas por vírgula"
     )
     parser.add_argument("--label-field", default="spam", help="Nome do campo de rótulo no CSV")

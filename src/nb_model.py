@@ -69,7 +69,7 @@ if __name__ == "__main__":
     # Defina os caminhos dos arquivos diretamente no código
     tfidf_path = r"../SpamDetector/data/processed/tfidf_sparse.npz"
     csv_path = r"../SpamDetector/data/processed/emails_test.csv"
-    vocab_path = r"../SpamDetector/data/processed/vocab.txt"
+    vocab_path = r"../SpamDetector/data/processed/vocab_cd.txt"
 
     # Carrega matriz TF-IDF de treino
     X = load_npz(tfidf_path).toarray()
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
     # Carrega vocab
     with open(vocab_path, encoding="utf-8") as f:
-        vocab = [line.strip() for line in f if line.strip()]
+        vocab = [line.strip().split(',')[0] for line in f if line.strip()]
 
     print("Distribuição das classes:", np.bincount(y))
     print("Proporção de features não nulas:", np.count_nonzero(X) / X.size)
@@ -99,3 +99,9 @@ if __name__ == "__main__":
     print("Classe prevista:", preds)
     print("Classe real:", y)
     print("Acurácia:", np.mean(preds == y))
+
+    print("TF-IDF shape:", X.shape)
+    print("Vocab size:", len(vocab))
+
+
+    print("Primeiras 8 palavras do vocab:", vocab[:8])

@@ -91,7 +91,7 @@ def normalize_text(text: str,
     tagged_tokens = []
     tag_word_set = set(w for words in TAG_WORDS.values() for w in words)
     tags_to_remove = {"PUNCTTAG", "EMAILTAG"}
-    tags_to_keep = {"NAMETAG", "URLTAG"}  # <-- Adicione esta linha
+    tags_to_keep = {"NAMETAG", "URLTAG"}
 
     for t in tokens:
         if t in tag_word_set:
@@ -111,7 +111,7 @@ def normalize_and_split_csv(input_path: str, train_path: str, test_path: str,
                            min_token_len: int = 1,
                            shuffle: bool = True,
                            seed: int = 42,
-                           n_train: int = 3500):
+                           n_train: int = 4728):
     input_p = Path(input_path)
     train_p = Path(train_path)
     test_p = Path(test_path)

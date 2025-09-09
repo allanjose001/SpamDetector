@@ -30,7 +30,7 @@ if __name__ == "__main__":
     csv_path = r"../SpamDetector/data/processed/emails_train.csv"
     max_lines = 10000        # processa até N linhas
     out_npz = r"../SpamDetector/data/processed/tfidf_sparse.npz"
-    out_vocab = r"../SpamDetector/data/processed/vocab.txt"
+    out_vocab = r"../SpamDetector/data/processed/vocab_cd.txt"
 
     # Lê textos (até max_lines) com contador de progresso
     texts = []
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     vocab_path = Path(out_vocab)
     if vocab_path.exists():
         with open(vocab_path, 'r', encoding='utf-8') as vf:
-            vocab = [line.strip() for line in vf if line.strip()]
+            vocab = [line.strip().split(',')[0] for line in vf if line.strip()]
         print(f"[vocab] carregado de: {vocab_path} (len={len(vocab)})")
     else:
         vocab = sorted({w for t in texts for w in t.split() if len(w) > 3})
