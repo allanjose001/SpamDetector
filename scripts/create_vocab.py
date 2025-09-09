@@ -13,9 +13,11 @@ n_spam = 0
 n_ham = 0
 
 for text, label in all_texts:
-    tokens = set([w for w in text.split() if len(w) >= 3])
-    doc_freq.update(tokens)
-    class_doc_freq[label].update(tokens)
+    tokens = [w for w in text.split() if len(w) >= 3]
+    bigrams = ['{}_{}'.format(tokens[i], tokens[i+1]) for i in range(len(tokens)-1)]
+    all_terms = set(tokens + bigrams)
+    doc_freq.update(all_terms)
+    class_doc_freq[label].update(all_terms)
     if label == 1:
         n_spam += 1
     else:

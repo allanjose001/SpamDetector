@@ -6,10 +6,17 @@ from scipy.sparse import save_npz
 from joblib import Parallel, delayed
 import csv
 
+def extract_terms(text):
+    tokens = [w for w in text.split() if len(w) >= 3]
+    bigrams = ['{}_{}'.format(tokens[i], tokens[i+1]) for i in range(len(tokens)-1)]
+    trigrams = ['{}_{}_{}'.format(tokens[i], tokens[i+1], tokens[i+2]) for i in range(len(tokens)-2)]
+    return tokens + bigrams + trigrams
+
 # Calcula tf-idf para um documento usando contagem por documento (mais eficiente)
 def tfidf_vector(doc, vocab, idf_dict):
-    # Conta tokens no documento uma única vez
-    counts = Counter(doc.split())
+    # Extrai unigrams e bigrams do documento
+    terms = extract_terms(doc)
+    counts = Counter(terms)
     vec = np.zeros(len(vocab), dtype=np.float32)
     for i, term in enumerate(vocab):
         c = counts.get(term, 0)
@@ -52,20 +59,21 @@ if __name__ == "__main__":
             vocab = [line.strip().split(',')[0] for line in vf if line.strip()]
         print(f"[vocab] carregado de: {vocab_path} (len={len(vocab)})")
     else:
-        vocab = sorted({w for t in texts for w in t.split() if len(w) > 3})
+        # Gera vocab com unigrams + bigrams
+        vocab = sorted({term for t in texts for term in extract_terms(t)})
         vocab_path.parent.mkdir(parents=True, exist_ok=True)
         with open(vocab_path, 'w', encoding='utf-8') as vf:
             for term in vocab:
                 vf.write(term + '\n')
         print(f"[vocab] gerado e salvo em: {vocab_path} (len={len(vocab)})")
 
-   # Calcula IDF de forma eficiente: uma passada pelos documentos para contar DF
+    # Calcula IDF de forma eficiente: conta DF para unigrams + bigrams
     print(f"[idf] contando DF em {len(texts)} documentos...")
     t_idf_start = time.time()
     df_counter = Counter()
     for doc in texts:
-        tokens = {tok.lower() for tok in doc.split()}  # conjunto por documento
-        df_counter.update(tokens)
+        terms = set(extract_terms(doc))  # conjunto por documento
+        df_counter.update(terms)
     n_docs = len(texts)
     idf_dict = {
         term: (np.log((n_docs + 1) / (df_counter.get(term, 0) + 1)) + 1.0) if n_docs > 0 else 0.0
@@ -90,7 +98,6 @@ if __name__ == "__main__":
     for i in range(0, n_docs, batch_size):
         batch = texts[i:i + batch_size]
         t_batch_start = time.time()
-        # Processa o batch em paralelo; verbose do joblib dará feedback interno
         batch_vecs = Parallel(n_jobs=-1, verbose=5)(
             delayed(tfidf_vector)(doc, vocab, idf_dict) for doc in batch
         )

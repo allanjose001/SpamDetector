@@ -8,7 +8,7 @@ from scipy.stats import norm
 
 # Caminhos padrão (ajuste se necessário)
 DEFAULT_TFIDF = r"../SpamDetector/data/processed/tfidf_sparse.npz"
-DEFAULT_VOCAB = r"../SpamDetector/data/processed/vocab.txt"
+DEFAULT_VOCAB = r"../SpamDetector/data/processed/vocab_cd.txt"
 DEFAULT_CSV = r"../SpamDetector/data/processed/emails_train.csv"
 
 def load_labels(csv_path, label_field='spam'):
@@ -26,7 +26,7 @@ def load_vocab(vocab_path):
     vocab = []
     with open(vocab_path, 'r', encoding='utf-8') as vf:
         for line in vf:
-            parts = line.strip().split('\t')
+            parts = line.strip().split(',') 
             if parts and parts[0]:
                 vocab.append(parts[0])
     index = {term: i for i, term in enumerate(vocab)}
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     parser.add_argument("--csv", default=DEFAULT_CSV, help="CSV com rótulos (campo 'spam')")
     parser.add_argument(
     "--words",
-    default="money",
+    default="nametag_nametag",
         help="Lista de palavras separadas por vírgula"
     )
     parser.add_argument("--label-field", default="spam", help="Nome do campo de rótulo no CSV")

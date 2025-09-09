@@ -1,4 +1,7 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
 
 class NaiveBayes:
     def fit(self, X, y):
@@ -102,6 +105,13 @@ if __name__ == "__main__":
 
     print("TF-IDF shape:", X.shape)
     print("Vocab size:", len(vocab))
-
-
     print("Primeiras 8 palavras do vocab:", vocab[:8])
+    
+    cm = confusion_matrix(y, preds)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    disp.plot(cmap='Blues')
+    plt.title("Matriz de Confusão")
+    plt.show()
+
+    print("Matriz de Confusão (linhas = real, colunas = previsto):")
+    print(cm)

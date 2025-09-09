@@ -19,7 +19,7 @@ def load_model():
     tfidf = load_npz("data/processed/tfidf_sparse.npz").toarray()
     n_samples = tfidf.shape[0]
     labels = []
-    with open("data/processed/emails_cleaned.csv", encoding="utf-8") as f:
+    with open("data/processed/emails_train.csv", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for i, row in enumerate(reader):
             if i >= n_samples:
@@ -39,7 +39,7 @@ if st.button("Analisar"):
         st.warning("Digite um email para analisar.")
     else:
         norm_text = normalize_text(email)
-        vocab, vocab_index = load_vocab("data/processed/vocab.txt")
+        vocab, vocab_index = load_vocab("data/processed/vocab_cd.txt")
         with open("data/processed/idf_dict.pkl", "rb") as f:
             idf_dict = pickle.load(f)
         tfidf_vec = tfidf_vector(norm_text, vocab, idf_dict)
@@ -55,7 +55,7 @@ if st.button("Analisar"):
         # Carrega matriz TF-IDF e rótulos completos
         tfidf_matrix = load_npz("data/processed/tfidf_sparse.npz").toarray()
         labels = []
-        with open("data/processed/emails_cleaned.csv", encoding="utf-8") as f:
+        with open("data/processed/emails_train.csv", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 labels.append(int(row["spam"]))

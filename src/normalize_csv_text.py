@@ -111,7 +111,7 @@ def normalize_and_split_csv(input_path: str, train_path: str, test_path: str,
                            min_token_len: int = 1,
                            shuffle: bool = True,
                            seed: int = 42,
-                           n_train: int = 4728):
+                           n_train: int = 5155):
     input_p = Path(input_path)
     train_p = Path(train_path)
     test_p = Path(test_path)
@@ -210,3 +210,5 @@ if __name__ == "__main__":
                            n_train=args.n_train)
     print(f"Treino salvo em: {train_path}")
     print(f"Teste salvo em: {test_path}")
+
+    
