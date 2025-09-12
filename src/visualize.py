@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 from pathlib import Path
 from scipy.sparse import load_npz
 import csv
@@ -10,6 +11,7 @@ from scipy.stats import norm
 DEFAULT_TFIDF = r"../SpamDetector/data/processed/tfidf_sparse.npz"
 DEFAULT_VOCAB = r"../SpamDetector/data/processed/vocab_cd.txt"
 DEFAULT_CSV = r"../SpamDetector/data/processed/emails_train.csv"
+GRAPHICS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "graphics")
 
 def load_labels(csv_path, label_field='spam'):
     labels = []
@@ -31,6 +33,13 @@ def load_vocab(vocab_path):
                 vocab.append(parts[0])
     index = {term: i for i, term in enumerate(vocab)}
     return vocab, index
+
+def salvar_grafico(nome_arquivo):
+    if not os.path.exists(GRAPHICS_DIR):
+        os.makedirs(GRAPHICS_DIR)
+    caminho = os.path.join(GRAPHICS_DIR, nome_arquivo)
+    plt.savefig(caminho)
+    print(f"Gráfico salvo em: {caminho}")
 
 def plot_likelihood(word, tfidf_values_spam, tfidf_values_ham):
     tfidf_values_spam = tfidf_values_spam[tfidf_values_spam > 0]
@@ -67,8 +76,8 @@ def plot_likelihood(word, tfidf_values_spam, tfidf_values_ham):
 
     plt.title(f"Verossimilhança para a palavra '{word}' (TF-IDF > 0)")
     plt.tight_layout()
-    plt.savefig(f"{word}_likelihood.png")  # <-- ALTERAÇÃO: salva o gráfico
-    plt.close(fig)  # <-- ALTERAÇÃO: fecha o gráfico para liberar memória
+    salvar_grafico(f"{word}_likelihood.png")
+    plt.close(fig)
 
 def main(tfidf_path, vocab_path, csv_path, words, label_field='spam'):
     # Carrega recursos
@@ -109,7 +118,7 @@ if __name__ == "__main__":
     parser.add_argument("--csv", default=DEFAULT_CSV, help="CSV com rótulos (campo 'spam')")
     parser.add_argument(
     "--words",
-    default="nametag_nametag",
+    default="money",
         help="Lista de palavras separadas por vírgula"
     )
     parser.add_argument("--label-field", default="spam", help="Nome do campo de rótulo no CSV")

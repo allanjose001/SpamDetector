@@ -10,7 +10,7 @@ import pandas as pd
 
 def load_vocab(vocab_path):
     with open(vocab_path, encoding="utf-8") as f:
-        vocab = [line.strip() for line in f if line.strip()]
+        vocab = [line.strip().split(',')[0] for line in f if line.strip()]
     vocab_index = {w: i for i, w in enumerate(vocab)}
     return vocab, vocab_index
 
@@ -19,6 +19,7 @@ def load_model():
     tfidf = load_npz("data/processed/tfidf_sparse.npz").toarray()
     n_samples = tfidf.shape[0]
     labels = []
+    # Use emails_train.csv para treinar
     with open("data/processed/emails_train.csv", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for i, row in enumerate(reader):
@@ -42,7 +43,12 @@ if st.button("Analisar"):
         vocab, vocab_index = load_vocab("data/processed/vocab_cd.txt")
         with open("data/processed/idf_dict.pkl", "rb") as f:
             idf_dict = pickle.load(f)
+        print("Texto normalizado:", norm_text)
+        print("Palavras do texto:", norm_text.split())
+        print("Primeiras palavras do vocab:", vocab[:20])
         tfidf_vec = tfidf_vector(norm_text, vocab, idf_dict)
+        print("TF-IDF vector:", tfidf_vec)
+        print("Non-zero indices:", np.nonzero(tfidf_vec))
         model = load_model()
         pred = model.predict([tfidf_vec])[0]
         st.success("SPAM" if pred == 1 else "NÃO É SPAM")
@@ -52,7 +58,7 @@ if st.button("Analisar"):
         mu1 = model.feature_params[1]["mean"]
         var1 = model.feature_params[1]["std"] ** 2
 
-        # Carrega matriz TF-IDF e rótulos completos
+        # Carrega matriz TF-IDF e rótulos completos do treino
         tfidf_matrix = load_npz("data/processed/tfidf_sparse.npz").toarray()
         labels = []
         with open("data/processed/emails_train.csv", encoding="utf-8") as f:
