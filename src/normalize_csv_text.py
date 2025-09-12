@@ -24,7 +24,7 @@ RE_MULTI_SPACE = re.compile(r'\s+')
 RE_REPEAT_CHARS = re.compile(r'(.)\1{2,}')   # colapsa repetições longas
 RE_REPEAT_PUNCT = re.compile(r"(([!?\-])(\s*\2){1,})")
 RE_EXACT_RE = re.compile(r'\sre\s:', flags=re.I)
-RE_NAME = re.compile(r"\b(vince|larrissa|kaminski|sharma|joe|john|martin|carr|collins|stephen|bennett|norma|mike|roberts|jose|marquez|paul|bristow|ed|edward|krapels)\b", flags=re.I)
+RE_NAME = re.compile(r"\b(vince|larrissa|kaminski|sharma|joe|john|martin|carr|collins|stephen|bennett|norma|mike|roberts|jose|marquez|paul|bristow|ed|edward|krapels|steve|robert)\b", flags=re.I)
 RE_FILE = re.compile(r"\b(pdf|doc|xls|letter|file|attach|enclo|attachment)\b", flags=re.I)
 RE_DATE = re.compile(r"\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|january|february|march|april|may|june|july|august|september|october|november|december|week|month|year|day|today|tomorrow|yesterday)\b", flags=re.I)
 
@@ -58,7 +58,8 @@ def normalize_text(text: str,
                    remove_html=True,
                    remove_numbers=False,
                    min_token_len=1,
-                   collapse_repeats=True) -> str:
+                   collapse_repeats=True,
+                   stem_log_path=None) -> str:
     if not text:
         return ''
     s = text
@@ -93,17 +94,25 @@ def normalize_text(text: str,
     tags_to_remove = {"PUNCTTAG", "EMAILTAG"}
     tags_to_keep = {"NAMETAG", "URLTAG"}
 
+    stem_log = []
     for t in tokens:
         if t in tag_word_set:
             continue
         if t in tags_to_remove:
             continue
         if t in tags_to_keep:
-            tagged_tokens.append(t)  # mantém a tag sem stemmatizar
+            tagged_tokens.append(t)
         else:
-            tagged_tokens.append(stemmer.stem(t))  # aplica stemmatização
+            stemmed = stemmer.stem(t)
+            tagged_tokens.append(stemmed)
+            if stem_log_path:
+                stem_log.append(f"{t},{stemmed}\n")
     if min_token_len > 1:
         tagged_tokens = [tok for tok in tagged_tokens if len(tok) >= min_token_len]
+    # Salva log se solicitado
+    if stem_log_path and stem_log:
+        with open(stem_log_path, "a", encoding="utf-8") as logf:
+            logf.writelines(stem_log)
     return ' '.join(tagged_tokens)
 
 def normalize_and_split_csv(input_path: str, train_path: str, test_path: str,
@@ -111,7 +120,7 @@ def normalize_and_split_csv(input_path: str, train_path: str, test_path: str,
                            min_token_len: int = 1,
                            shuffle: bool = True,
                            seed: int = 42,
-                           n_train: int = 5155):
+                           n_train: int = 100):
     input_p = Path(input_path)
     train_p = Path(train_path)
     test_p = Path(test_path)
@@ -161,9 +170,12 @@ if __name__ == "__main__":
         "NAMETAG went to the URLTAG",
         "the quick brown fox jumps over the lazy dog"
     ]
+    stem_log_path = "stem_log.txt"
+    # Limpa o arquivo de log antes de rodar exemplos
+    open(stem_log_path, "w").close()
     for texto in exemplos:
         print("Original:", texto)
-        print("Normalizado:", normalize_text(texto))
+        print("Normalizado:", normalize_text(texto, stem_log_path=stem_log_path))
         print("---")
 
     N_TRAIN = 5729-1000  # quantidade para treino

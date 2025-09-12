@@ -110,8 +110,9 @@ if __name__ == "__main__":
     cm = confusion_matrix(y, preds)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm)
     disp.plot(cmap='Blues')
-    plt.title("Matriz de Confusão")
+    plt.title(f"Matriz de Confusão\nAcurácia: {np.mean(preds == y):.4f}")
     plt.show()
 
     print("Matriz de Confusão (linhas = real, colunas = previsto):")
     print(cm)
+    print(f"Acurácia: {np.mean(preds == y):.4f}")

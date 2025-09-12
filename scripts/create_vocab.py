@@ -23,11 +23,17 @@ for text, label in all_texts:
     else:
         n_ham += 1
 
+MIN_PER_CLASS = 3  # mínimo de ocorrências em cada classe para considerar o termo
+
 cd_scores = {}
 for w in doc_freq:
-    p_spam = class_doc_freq[1][w] / n_spam if n_spam > 0 else 0
-    p_ham = class_doc_freq[0][w] / n_ham if n_ham > 0 else 0
-    cd_scores[w] = abs(p_spam - p_ham)
+    spam_count = class_doc_freq[1][w]
+    ham_count = class_doc_freq[0][w]
+    # Só calcula CD se o termo aparece pelo menos MIN_PER_CLASS vezes em cada classe
+    if spam_count >= MIN_PER_CLASS and ham_count >= MIN_PER_CLASS:
+        p_spam = spam_count / n_spam if n_spam > 0 else 0
+        p_ham = ham_count / n_ham if n_ham > 0 else 0
+        cd_scores[w] = abs(p_spam - p_ham)
 
 # Ordena por CD decrescente
 sorted_terms = sorted(cd_scores.items(), key=lambda x: -x[1])

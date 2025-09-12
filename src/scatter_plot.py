@@ -5,16 +5,16 @@ import csv
 
 # Caminhos dos arquivos
 tfidf_path = r"../SpamDetector/data/processed/tfidf_sparse.npz"
-vocab_path = r"../SpamDetector/data/processed/vocab.txt"
-csv_path = r"../SpamDetector/data/processed/emails_cleaned.csv"
+vocab_path = r"../SpamDetector/data/processed/vocab_cd.txt"
+csv_path = r"../SpamDetector/data/processed/emails_train.csv"
 
 def load_vocab(vocab_path):
     vocab = []
     with open(vocab_path, 'r', encoding='utf-8') as vf:
         for line in vf:
-            term = line.strip()
-            if term:
-                vocab.append(term)
+            parts = line.strip().split(',')
+            if parts and parts[0]:
+                vocab.append(parts[0])
     index = {term: i for i, term in enumerate(vocab)}
     return vocab, index
 
@@ -53,7 +53,7 @@ def plot_tfidf_bar_per_class(word):
     spam_vals = tfidf_word_nonzero[labels_nonzero == 1]
     ham_vals = tfidf_word_nonzero[labels_nonzero == 0]
 
-    bins = 30
+    bins = 25
 
     # Histograma para spam
     plt.figure(figsize=(8, 4))
@@ -74,5 +74,5 @@ def plot_tfidf_bar_per_class(word):
     plt.show()
 
 if __name__ == "__main__":
-    word = "money"
+    word = "thank"
     plot_tfidf_bar_per_class(word)

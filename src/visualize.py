@@ -118,7 +118,7 @@ if __name__ == "__main__":
     parser.add_argument("--csv", default=DEFAULT_CSV, help="CSV com rótulos (campo 'spam')")
     parser.add_argument(
     "--words",
-    default="money",
+    default="inher",
         help="Lista de palavras separadas por vírgula"
     )
     parser.add_argument("--label-field", default="spam", help="Nome do campo de rótulo no CSV")
