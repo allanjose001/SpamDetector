@@ -1,4 +1,7 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
 
 class NaiveBayes:
     def fit(self, X, y):
@@ -16,35 +19,28 @@ class NaiveBayes:
     def _gaussian_likelihood(self, x, mean, std):
         return (1.0 / (np.sqrt(2 * np.pi) * std)) * np.exp(- ((x - mean) ** 2) / (2 * std ** 2))
 
-    def explain(self, x, vocab=None):
-        """
-        Explica a decisão do modelo para um único vetor x.
-        Retorna um dicionário detalhado com todos os passos do cálculo.
-        """
-        explanation = {}
-        nonzero_idx = np.where(x != 0)[0]
-        words = [vocab[i] for i in nonzero_idx] if vocab is not None else nonzero_idx.tolist()
-        x_nonzero = x[nonzero_idx]
-        explanation['words'] = words
-        explanation['tfidf'] = x_nonzero.tolist()
-        explanation['classes'] = {}
-        for c in self.classes:
-            prior = self.class_priors[c]
-            mean = self.feature_params[c]["mean"][nonzero_idx]
-            std = self.feature_params[c]["std"][nonzero_idx]
-            likelihoods = self._gaussian_likelihood(x_nonzero, mean, std)
-            log_likelihoods = np.log(likelihoods + 1e-9)
-            class_logprob = np.log(prior) + np.sum(log_likelihoods)
-            explanation['classes'][int(c)] = {
-                "prior": float(prior),
-                "mean": mean.tolist(),
-                "std": std.tolist(),
-                "likelihoods": likelihoods.tolist(),
-                "log_likelihoods": log_likelihoods.tolist(),
-                "log_likelihood_sum": float(np.sum(log_likelihoods)),
-                "class_logprob": float(class_logprob)
-            }
-        return explanation
+    def explain(x, vocab, mu0, var0, mu1, var1, pred, tfidf_matrix, labels):
+        n_features = tfidf_matrix.shape[1]
+        selected = []
+        for i, tfidf in enumerate(x):
+            if i >= n_features:
+                continue
+            if tfidf > 0 and vocab[i]:
+                if pred == 1:
+                    likelihood_pred = (1.0 / np.sqrt(2 * np.pi * var1[i])) * np.exp(-((tfidf - mu1[i]) ** 2) / (2 * var1[i]))
+                    likelihood_other = (1.0 / np.sqrt(2 * np.pi * var0[i])) * np.exp(-((tfidf - mu0[i]) ** 2) / (2 * var0[i]))
+                    diff = likelihood_pred - likelihood_other
+                else:
+                    likelihood_pred = (1.0 / np.sqrt(2 * np.pi * var0[i])) * np.exp(-((tfidf - mu0[i]) ** 2) / (2 * var0[i]))
+                    likelihood_other = (1.0 / np.sqrt(2 * np.pi * var1[i])) * np.exp(-((tfidf - mu1[i]) ** 2) / (2 * var1[i]))
+                    diff = likelihood_pred - likelihood_other
+                selected.append((vocab[i], tfidf, likelihood_pred, diff))
+        if pred == 1:
+            selected.sort(key=lambda x: -x[3])
+        else:
+            selected.sort(key=lambda x: x[3])
+        for token, tfidf, likelihood_pred, diff in selected:
+            print(f"{token}\t{tfidf:.4f}\t{likelihood_pred:.6f}\t{diff:.6f}")
 
     def predict_proba(self, X):
         probs = []
@@ -73,43 +69,49 @@ if __name__ == "__main__":
     from scipy.sparse import load_npz
     import csv
 
-    # Caminhos dos arquivos
+    # Defina os caminhos dos arquivos diretamente no código
     tfidf_path = r"../SpamDetector/data/processed/tfidf_sparse.npz"
-    csv_path = r"../SpamDetector/data/processed/emails_cleaned.csv"
+    csv_path = r"../SpamDetector/data/processed/emails_test.csv"
+    vocab_path = r"../SpamDetector/data/processed/vocab_cd.txt"
 
-    # Carrega matriz TF-IDF
-    tfidf = load_npz(tfidf_path).toarray()
-
-    # Carrega rótulos
-    labels = []
+    # Carrega matriz TF-IDF de treino
+    X = load_npz(tfidf_path).toarray()
+    y = []
     with open(csv_path, encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            labels.append(int(row["spam"]))
-    labels = np.array(labels)
+            y.append(int(row["spam"]))
+    y = np.array(y)
+    if X.shape[0] < y.shape[0]:
+        y = y[:X.shape[0]]
+    elif X.shape[0] > y.shape[0]:
+        X = X[:y.shape[0]]
 
-    if tfidf.shape[0] < labels.shape[0]:
-        labels = labels[:tfidf.shape[0]]
-    elif tfidf.shape[0] > labels.shape[0]:
-        tfidf = tfidf[:labels.shape[0]]
+    # Carrega vocab
+    with open(vocab_path, encoding="utf-8") as f:
+        vocab = [line.strip().split(',')[0] for line in f if line.strip()]
 
-    # Separa último exemplo para teste
-    n_test = 100
-    X_train = tfidf[:-n_test]
-    y_train = labels[:-n_test]
-    X_test = tfidf[-n_test:]
-    y_test = labels[-n_test:]
+    print("Distribuição das classes:", np.bincount(y))
+    print("Proporção de features não nulas:", np.count_nonzero(X) / X.size)
 
-    print("Distribuição das classes no treino:", np.bincount(y_train))
-    print("Distribuição das classes no teste:", np.bincount(y_test))
-    print("Proporção de features não nulas no teste:", np.count_nonzero(X_test) / X_test.size)
-
-    # Treina e testa
+    # Treina e testa no próprio conjunto
     model = NaiveBayes()
-    model.fit(X_train, y_train)
-    preds = model.predict(X_test)
+    model.fit(X, y)
+    preds = model.predict(X)
 
-    # Mostra resultados
     print("Classe prevista:", preds)
-    print("Classe real:", y_test)
-    print("Acurácia:", np.mean(preds == y_test))
+    print("Classe real:", y)
+    print("Acurácia:", np.mean(preds == y))
+
+    print("TF-IDF shape:", X.shape)
+    print("Vocab size:", len(vocab))
+    print("Primeiras 8 palavras do vocab:", vocab[:8])
+    
+    cm = confusion_matrix(y, preds)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+    disp.plot(cmap='Blues')
+    plt.title("Matriz de Confusão")
+    plt.show()
+
+    print("Matriz de Confusão (linhas = real, colunas = previsto):")
+    print(cm)

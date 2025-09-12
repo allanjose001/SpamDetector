@@ -4,28 +4,23 @@ from scipy.sparse import load_npz
 from src.normalize_csv_text import normalize_text
 from src.nb_model import NaiveBayes
 from scripts.tf_idf import tfidf_vector
-from scipy.stats import norm
-from collections import Counter
-import matplotlib.pyplot as plt
 import pickle
 import csv
-import joblib
+import pandas as pd
 
-# Carregue o vocabulário
 def load_vocab(vocab_path):
     with open(vocab_path, encoding="utf-8") as f:
-        vocab = [line.strip() for line in f if line.strip()]
+        vocab = [line.strip().split(',')[0] for line in f if line.strip()]
     vocab_index = {w: i for i, w in enumerate(vocab)}
     return vocab, vocab_index
 
-# Carregue o modelo treinado (ou treine rapidamente)
 @st.cache_resource
 def load_model():
-    # Carregue a matriz TF-IDF e os rótulos
     tfidf = load_npz("data/processed/tfidf_sparse.npz").toarray()
     n_samples = tfidf.shape[0]
     labels = []
-    with open("data/processed/emails_cleaned.csv", encoding="utf-8") as f:
+    # Use emails_train.csv para treinar
+    with open("data/processed/emails_train.csv", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for i, row in enumerate(reader):
             if i >= n_samples:
@@ -44,108 +39,86 @@ if st.button("Analisar"):
     if not email.strip():
         st.warning("Digite um email para analisar.")
     else:
-        # Normaliza
         norm_text = normalize_text(email)
-        # Carrega vocabulário e idf_dict
-        vocab, vocab_index = load_vocab("data/processed/vocab.txt")
+        vocab, vocab_index = load_vocab("data/processed/vocab_cd.txt")
         with open("data/processed/idf_dict.pkl", "rb") as f:
             idf_dict = pickle.load(f)
-        # Calcula vetor TF-IDF
+        print("Texto normalizado:", norm_text)
+        print("Palavras do texto:", norm_text.split())
+        print("Primeiras palavras do vocab:", vocab[:20])
         tfidf_vec = tfidf_vector(norm_text, vocab, idf_dict)
+        print("TF-IDF vector:", tfidf_vec)
+        print("Non-zero indices:", np.nonzero(tfidf_vec))
         model = load_model()
         pred = model.predict([tfidf_vec])[0]
-        explanation = model.explain(tfidf_vec, vocab)
         st.success("SPAM" if pred == 1 else "NÃO É SPAM")
 
-        # --- Ajuste: garantir alinhamento dos índices ---
-        # Se explanation['words'] não está alinhado com o vetor tfidf, alinhe pelo vocab
-        words = explanation['words']
-        tfidfs = np.array(explanation['tfidf'])
-        classes = explanation['classes']
-        chosen_class = int(pred)
-        log_likelihoods = np.array(classes[chosen_class]['log_likelihoods'])
+        mu0 = model.feature_params[0]["mean"]
+        var0 = model.feature_params[0]["std"] ** 2
+        mu1 = model.feature_params[1]["mean"]
+        var1 = model.feature_params[1]["std"] ** 2
 
-        mu_spam = np.array(classes[1]['mean'])
-        std_spam = np.array(classes[1]['std'])
-        mu_ham = np.array(classes[0]['mean'])
-        std_ham = np.array(classes[0]['std'])
+        # Carrega matriz TF-IDF e rótulos completos do treino
+        tfidf_matrix = load_npz("data/processed/tfidf_sparse.npz").toarray()
+        labels = []
+        with open("data/processed/emails_train.csv", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                labels.append(int(row["spam"]))
+        labels = np.array(labels)
 
-        # Z-score para a classe escolhida
-        if chosen_class == 1:
-            z_scores = (tfidfs - mu_spam) / std_spam
+        # --- ajuste para garantir tamanhos iguais ---
+        min_len = min(len(labels), tfidf_matrix.shape[0])
+        labels = labels[:min_len]
+        tfidf_matrix = tfidf_matrix[:min_len, :]
+
+        # Coleta os dados explicativos em uma lista
+        explicativos = []
+        n_features = tfidf_matrix.shape[1]
+        for i, tfidf in enumerate(tfidf_vec):
+            if i >= n_features:
+                continue
+            if tfidf > 0 and vocab[i]:
+                # Calcula média e variância APENAS dos tf-idf não nulos na base de treinamento para cada classe
+                tfidf_spam = tfidf_matrix[labels == 1, i]
+                tfidf_spam_nz = tfidf_spam[tfidf_spam > 0]
+                tfidf_ham = tfidf_matrix[labels == 0, i]
+                tfidf_ham_nz = tfidf_ham[tfidf_ham > 0]
+
+                # Se não houver valores não nulos, usa fallback dos parâmetros do modelo
+                if pred == 1:
+                    mu_pred = np.mean(tfidf_spam_nz) if len(tfidf_spam_nz) > 0 else mu1[i]
+                    var_pred = np.var(tfidf_spam_nz) if len(tfidf_spam_nz) > 0 else var1[i]
+                    mu_other = np.mean(tfidf_ham_nz) if len(tfidf_ham_nz) > 0 else mu0[i]
+                    var_other = np.var(tfidf_ham_nz) if len(tfidf_ham_nz) > 0 else var0[i]
+                else:
+                    mu_pred = np.mean(tfidf_ham_nz) if len(tfidf_ham_nz) > 0 else mu0[i]
+                    var_pred = np.var(tfidf_ham_nz) if len(tfidf_ham_nz) > 0 else var0[i]
+                    mu_other = np.mean(tfidf_spam_nz) if len(tfidf_spam_nz) > 0 else mu1[i]
+                    var_other = np.var(tfidf_spam_nz) if len(tfidf_spam_nz) > 0 else var1[i]
+
+                var_pred = var_pred if var_pred > 0 else 1e-6
+                var_other = var_other if var_other > 0 else 1e-6
+
+                likelihood_pred = (1.0 / np.sqrt(2 * np.pi * var_pred)) * np.exp(-((tfidf - mu_pred) ** 2) / (2 * var_pred))
+                likelihood_other = (1.0 / np.sqrt(2 * np.pi * var_other)) * np.exp(-((tfidf - mu_other) ** 2) / (2 * var_other))
+
+                explicativos.append({
+                    "Palavra": vocab[i],
+                    "TF-IDF": round(tfidf, 4),
+                    "Verossimilhança": round(likelihood_pred, 6),
+                    "Diferença Verossimilhança": round(likelihood_pred - likelihood_other, 6)
+                })
+
+        # Ordena por diferença de verossimilhança conforme a classe prevista
+        if pred == 1:
+            explicativos.sort(key=lambda x: -x["Diferença Verossimilhança"])
         else:
-            z_scores = (tfidfs - mu_ham) / std_ham
+            explicativos.sort(key=lambda x: x["Diferença Verossimilhança"])
 
-        # Diferença absoluta das médias
-        delta_mean = np.abs(mu_spam - mu_ham)
-
-        # Nova métrica de contribuição (ajuste como quiser)
-        contrib_metric = np.abs(tfidfs) * np.abs(z_scores) * (delta_mean + 1e-6)
-
-        # Percentual de contribuição
-        percent_contrib = 100 * contrib_metric / contrib_metric.sum() if contrib_metric.sum() > 0 else np.zeros_like(contrib_metric)
-
-        # Ordena pelas maiores contribuições
-        top_n = 10
-        top_idx = np.argsort(contrib_metric)[::-1][:top_n]
-
-        word_counts = Counter(norm_text.split())
-
-        st.subheader(f"Palavras mais influentes para a decisão ({'SPAM' if pred==1 else 'HAM'})")
-
-        cols = st.columns(2)
-        for i, idx in enumerate(top_idx):
-            word = words[idx]
-            tfidf_value = tfidfs[idx]
-            count = word_counts.get(word, 0)
-            z_s = (tfidfs[idx] - mu_spam[idx]) / std_spam[idx]
-            z_h = (tfidfs[idx] - mu_ham[idx]) / std_ham[idx]
-            delta = delta_mean[idx]
-            pct = percent_contrib[idx]
-            with cols[i % 2]:
-                st.markdown(
-                    f"**{word}**  \n"
-                    f"- Contagem: `{count}`  \n"
-                    f"- TF-IDF: `{tfidf_value:.4f}`  \n"
-                    f"- Z-score (spam): `{z_s:.2f}`  \n"
-                    f"- Z-score (ham): `{z_h:.2f}`  \n"
-                    f"- |Média(spam) - Média(ham)|: `{delta:.4g}`  \n"
-                    f"- **Contribuição para decisão:** `{pct:.1f}%`"
-                )
-
-        # --- Gráfico para a palavra mais relevante ---
-        if len(top_idx) > 0:
-            idx = top_idx[0]
-            word = words[idx]
-            tfidf_value = tfidfs[idx]
-            mu_spam = classes[1]['mean'][idx]
-            std_spam = classes[1]['std'][idx]
-            mu_ham = classes[0]['mean'][idx]
-            std_ham = classes[0]['std'][idx]
-
-            x_min = 0
-            x_max = max(mu_spam + 3*std_spam, mu_ham + 3*std_ham, tfidf_value + 0.1)
-            x = np.linspace(x_min, x_max, 200)
-            likelihood_spam = norm.pdf(x, mu_spam, std_spam)
-            likelihood_ham = norm.pdf(x, mu_ham, std_ham)
-            ratio = np.divide(likelihood_spam, likelihood_ham, out=np.zeros_like(likelihood_spam), where=likelihood_ham!=0)
-
-            with st.container():
-                fig, ax1 = plt.subplots(figsize=(7, 4))
-                ax1.plot(x, likelihood_spam, label=f"Spam (μ={mu_spam:.3f}, σ={std_spam:.3f})", color='red')
-                ax1.plot(x, likelihood_ham, label=f"Ham (μ={mu_ham:.3f}, σ={std_ham:.3f})", color='blue')
-                ax1.axvline(tfidf_value, color='green', linestyle='--', label=f"TF-IDF no email: {tfidf_value:.3f}")
-                ax1.set_xlabel("TF-IDF")
-                ax1.set_ylabel("Verossimilhança (PDF)")
-                ax1.legend(loc="upper left")
-                ax1.grid(True, linestyle='--', alpha=0.5)
-
-                ax2 = ax1.twinx()
-                ax2.plot(x, ratio, label="Spam/Ham", color='black', linestyle='--')
-                ax2.set_ylabel("Razão Spam/Ham")
-                ax2.set_yscale("log")
-                ax2.legend(loc="upper right")
-
-                plt.title(f"Verossimilhança para '{word}' (palavra mais relevante)")
-                plt.tight_layout()
-                st.pyplot(fig)
+        st.subheader("Palavras mais influentes para a decisão")
+        if explicativos:
+            df = pd.DataFrame(explicativos)
+            st.dataframe(df)
+        else:
+            st.info("Nenhuma palavra explicativa encontrada para este email.")
