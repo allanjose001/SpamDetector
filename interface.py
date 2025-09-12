@@ -43,12 +43,7 @@ if st.button("Analisar"):
         vocab, vocab_index = load_vocab("data/processed/vocab_cd.txt")
         with open("data/processed/idf_dict.pkl", "rb") as f:
             idf_dict = pickle.load(f)
-        print("Texto normalizado:", norm_text)
-        print("Palavras do texto:", norm_text.split())
-        print("Primeiras palavras do vocab:", vocab[:20])
         tfidf_vec = tfidf_vector(norm_text, vocab, idf_dict)
-        print("TF-IDF vector:", tfidf_vec)
-        print("Non-zero indices:", np.nonzero(tfidf_vec))
         model = load_model()
         pred = model.predict([tfidf_vec])[0]
         st.success("SPAM" if pred == 1 else "NÃO É SPAM")
