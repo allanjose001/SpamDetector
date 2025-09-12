@@ -57,50 +57,59 @@ if st.button("Analisar"):
         explanation = model.explain(tfidf_vec, vocab)
         st.success("SPAM" if pred == 1 else "NÃO É SPAM")
 
-        # --- Top 10 palavras mais influentes ---
+        # --- Ajuste: garantir alinhamento dos índices ---
+        # Se explanation['words'] não está alinhado com o vetor tfidf, alinhe pelo vocab
         words = explanation['words']
-        tfidfs = explanation['tfidf']
+        tfidfs = np.array(explanation['tfidf'])
         classes = explanation['classes']
         chosen_class = int(pred)
         log_likelihoods = np.array(classes[chosen_class]['log_likelihoods'])
 
-        # Ordena por influência (valor absoluto do log-likelihood)
-        top_n = 10
-        top_idx = np.argsort(np.abs(log_likelihoods))[::-1][:top_n]
+        mu_spam = np.array(classes[1]['mean'])
+        std_spam = np.array(classes[1]['std'])
+        mu_ham = np.array(classes[0]['mean'])
+        std_ham = np.array(classes[0]['std'])
 
-        # Cálculo da contribuição percentual
-        abs_log_likelihoods = np.abs(log_likelihoods)
-        total_abs_log_likelihood = np.sum(abs_log_likelihoods)
-        percent_contrib = 100 * abs_log_likelihoods / total_abs_log_likelihood if total_abs_log_likelihood > 0 else np.zeros_like(abs_log_likelihoods)
+        # Z-score para a classe escolhida
+        if chosen_class == 1:
+            z_scores = (tfidfs - mu_spam) / std_spam
+        else:
+            z_scores = (tfidfs - mu_ham) / std_ham
+
+        # Diferença absoluta das médias
+        delta_mean = np.abs(mu_spam - mu_ham)
+
+        # Nova métrica de contribuição (ajuste como quiser)
+        contrib_metric = np.abs(tfidfs) * np.abs(z_scores) * (delta_mean + 1e-6)
+
+        # Percentual de contribuição
+        percent_contrib = 100 * contrib_metric / contrib_metric.sum() if contrib_metric.sum() > 0 else np.zeros_like(contrib_metric)
+
+        # Ordena pelas maiores contribuições
+        top_n = 10
+        top_idx = np.argsort(contrib_metric)[::-1][:top_n]
 
         word_counts = Counter(norm_text.split())
 
         st.subheader(f"Palavras mais influentes para a decisão ({'SPAM' if pred==1 else 'HAM'})")
 
-        # Layout compacto: 2 colunas por linha
         cols = st.columns(2)
         for i, idx in enumerate(top_idx):
             word = words[idx]
             tfidf_value = tfidfs[idx]
             count = word_counts.get(word, 0)
-            mu_spam = classes[1]['mean'][idx]
-            std_spam = classes[1]['std'][idx]
-            mu_ham = classes[0]['mean'][idx]
-            std_ham = classes[0]['std'][idx]
-            z_spam = (tfidf_value - mu_spam) / std_spam if std_spam > 1e-8 else 0
-            z_ham = (tfidf_value - mu_ham) / std_ham if std_ham > 1e-8 else 0
-            log_l = log_likelihoods[idx]
+            z_s = (tfidfs[idx] - mu_spam[idx]) / std_spam[idx]
+            z_h = (tfidfs[idx] - mu_ham[idx]) / std_ham[idx]
+            delta = delta_mean[idx]
             pct = percent_contrib[idx]
             with cols[i % 2]:
                 st.markdown(
                     f"**{word}**  \n"
                     f"- Contagem: `{count}`  \n"
                     f"- TF-IDF: `{tfidf_value:.4f}`  \n"
-                    f"- Média (spam): `{mu_spam:.4f}` | σ: `{std_spam:.4f}`  \n"
-                    f"- Média (ham): `{mu_ham:.4f}` | σ: `{std_ham:.4f}`  \n"
-                    f"- Z-score (spam): `{z_spam:.2f}`  \n"
-                    f"- Z-score (ham): `{z_ham:.2f}`  \n"
-                    f"- Log-likelihood: `{log_l:.4f}`  \n"
+                    f"- Z-score (spam): `{z_s:.2f}`  \n"
+                    f"- Z-score (ham): `{z_h:.2f}`  \n"
+                    f"- |Média(spam) - Média(ham)|: `{delta:.4g}`  \n"
                     f"- **Contribuição para decisão:** `{pct:.1f}%`"
                 )
 

@@ -49,7 +49,7 @@ class NaiveBayes:
     def predict_proba(self, X):
         probs = []
         for x in X:
-            nonzero_idx = np.where(x != 0)[0]  # Só considera features presentes no email
+            nonzero_idx = np.where(x != 0)[0]
             class_probs = {}
             for c in self.classes:
                 prior = self.class_priors[c]
